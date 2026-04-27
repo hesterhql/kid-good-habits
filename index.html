@@ -1,208 +1,399 @@
-<script>
-  const tasks = ["bed", "wash", "bath", "toilet"];
-  let currentDate = new Date();
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>儿童好习惯打卡</title>
+  <style>
+    * { box-sizing: border-box; }
 
-  function getDateKey(date) {
-    return date.toISOString().split("T")[0];
-  }
-
-  function getChineseDate(date) {
-    return `${date.getMonth() + 1}月${date.getDate()}日`;
-  }
-
-  function loadData(dateKey) {
-    const saved = localStorage.getItem("habit-" + dateKey);
-    return saved ? JSON.parse(saved) : {
-      bed: false,
-      wash: false,
-      bath: false,
-      toilet: false
-    };
-  }
-
-  function saveData(dateKey, data) {
-    localStorage.setItem("habit-" + dateKey, JSON.stringify(data));
-  }
-
-  function countDone(data) {
-    return tasks.filter(task => data[task]).length;
-  }
-
-  function earnedStar(data) {
-    return countDone(data) >= 3;
-  }
-
-  function getStarCount() {
-    let starCount = 0;
-
-    for (let i = 0; i < 30; i++) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const data = loadData(getDateKey(d));
-      if (earnedStar(data)) starCount++;
+    body {
+      margin: 0;
+      font-family: Arial, "Microsoft YaHei", sans-serif;
+      background: linear-gradient(180deg, #fff3c4, #dff6ff);
+      min-height: 100vh;
+      padding: 20px;
+      color: #333;
     }
 
-    return starCount;
-  }
-
-  function launchFireworks() {
-    const fireworks = document.createElement("div");
-    fireworks.style.position = "fixed";
-    fireworks.style.inset = "0";
-    fireworks.style.pointerEvents = "none";
-    fireworks.style.zIndex = "9999";
-    fireworks.style.overflow = "hidden";
-    document.body.appendChild(fireworks);
-
-    for (let i = 0; i < 80; i++) {
-      const spark = document.createElement("div");
-      spark.textContent = ["🎆", "🎇", "✨", "⭐", "🌟"][Math.floor(Math.random() * 5)];
-      spark.style.position = "absolute";
-      spark.style.left = Math.random() * 100 + "vw";
-      spark.style.top = Math.random() * 100 + "vh";
-      spark.style.fontSize = Math.random() * 28 + 18 + "px";
-      spark.style.animation = "firework-fall 1.8s ease-out forwards";
-      fireworks.appendChild(spark);
+    .app {
+      max-width: 520px;
+      margin: 0 auto;
     }
 
-    setTimeout(() => {
-      fireworks.remove();
-    }, 2000);
-  }
+    .header, .card {
+      background: #fff;
+      border-radius: 28px;
+      padding: 22px 16px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+      margin-bottom: 20px;
+    }
 
-  function addFireworkStyle() {
-    if (document.getElementById("firework-style")) return;
+    .header { text-align: center; }
 
-    const style = document.createElement("style");
-    style.id = "firework-style";
-    style.textContent = `
-      @keyframes firework-fall {
-        0% {
-          transform: scale(0.2) rotate(0deg);
-          opacity: 0;
-        }
-        30% {
-          opacity: 1;
-        }
-        100% {
-          transform: scale(1.8) rotate(360deg);
-          opacity: 0;
+    h1 {
+      margin: 0;
+      font-size: 32px;
+    }
+
+    .date {
+      margin-top: 10px;
+      font-size: 18px;
+      color: #666;
+    }
+
+    .task {
+      width: 100%;
+      border: none;
+      border-radius: 22px;
+      padding: 18px;
+      margin: 10px 0;
+      font-size: 24px;
+      text-align: left;
+      background: #e9f7ff;
+      cursor: pointer;
+      transition: 0.2s;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .task.done {
+      background: #d8ffd8;
+      transform: scale(1.02);
+    }
+
+    .check {
+      font-size: 28px;
+    }
+
+    .progress, .message, .reward-box {
+      text-align: center;
+    }
+
+    .progress {
+      font-size: 28px;
+      margin-top: 16px;
+    }
+
+    .message {
+      font-size: 22px;
+      font-weight: bold;
+      margin-top: 12px;
+      color: #ff7a00;
+    }
+
+    .reward-box {
+      font-size: 22px;
+      line-height: 1.6;
+    }
+
+    .stars {
+      font-size: 30px;
+      margin: 10px 0;
+    }
+
+    .calendar {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .day {
+      background: #f1f1f1;
+      border-radius: 16px;
+      padding: 10px 0;
+      text-align: center;
+      font-size: 18px;
+    }
+
+    .day.success {
+      background: #ffe066;
+      font-weight: bold;
+    }
+
+    .buttons {
+      display: flex;
+      gap: 10px;
+    }
+
+    .small-btn {
+      flex: 1;
+      border: none;
+      border-radius: 18px;
+      padding: 14px;
+      font-size: 18px;
+      background: #ffb3c6;
+      cursor: pointer;
+    }
+
+    .small-btn.secondary {
+      background: #bde0fe;
+    }
+
+    .footer {
+      text-align: center;
+      color: #666;
+      font-size: 14px;
+      margin-top: 16px;
+    }
+
+    @keyframes firework-pop {
+      0% {
+        transform: scale(0.2) rotate(0deg);
+        opacity: 0;
+      }
+      30% {
+        opacity: 1;
+      }
+      100% {
+        transform: scale(1.8) rotate(360deg);
+        opacity: 0;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <div class="header">
+      <h1>🌟 小小自理达人 🌟</h1>
+      <div class="date" id="todayText"></div>
+    </div>
+
+    <div class="card">
+      <button class="task" data-task="bed">
+        <span>🛏️ 整理床铺</span>
+        <span class="check">⬜</span>
+      </button>
+
+      <button class="task" data-task="wash">
+        <span>🪥 刷牙洗脸</span>
+        <span class="check">⬜</span>
+      </button>
+
+      <button class="task" data-task="bath">
+        <span>🛁 晚上洗澡</span>
+        <span class="check">⬜</span>
+      </button>
+
+      <button class="task" data-task="toilet">
+        <span>🚽 上厕所冲水</span>
+        <span class="check">⬜</span>
+      </button>
+
+      <div class="progress" id="progressText">今日进度：☆☆☆☆</div>
+      <div class="message" id="messageText">今天开始闯关吧！</div>
+    </div>
+
+    <div class="card reward-box">
+      <div>🎁 奖励进度</div>
+      <div class="stars" id="rewardStars">☆☆☆☆☆</div>
+      <div id="rewardText">连续 5 天达标放烟花 🎆</div>
+
+      <div class="calendar" id="calendar"></div>
+    </div>
+
+    <div class="buttons">
+      <button class="small-btn secondary" onclick="changeDay(-1)">⬅ 前一天</button>
+      <button class="small-btn" onclick="resetToday()">重置今天</button>
+      <button class="small-btn secondary" onclick="changeDay(1)">后一天 ➡</button>
+    </div>
+
+    <div class="footer">
+      每天完成 3 项或以上，就算当天达标 ⭐
+    </div>
+  </div>
+
+  <script>
+    const tasks = ["bed", "wash", "bath", "toilet"];
+    let currentDate = new Date();
+
+    function getDateKey(date) {
+      return date.toISOString().split("T")[0];
+    }
+
+    function getChineseDate(date) {
+      return `${date.getMonth() + 1}月${date.getDate()}日`;
+    }
+
+    function loadData(dateKey) {
+      const saved = localStorage.getItem("habit-" + dateKey);
+      return saved ? JSON.parse(saved) : {
+        bed: false,
+        wash: false,
+        bath: false,
+        toilet: false
+      };
+    }
+
+    function saveData(dateKey, data) {
+      localStorage.setItem("habit-" + dateKey, JSON.stringify(data));
+    }
+
+    function countDone(data) {
+      return tasks.filter(task => data[task]).length;
+    }
+
+    function earnedStar(data) {
+      return countDone(data) >= 3;
+    }
+
+    function getCurrentStreak() {
+      let streak = 0;
+
+      for (let i = 0; i < 365; i++) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+
+        const data = loadData(getDateKey(d));
+
+        if (earnedStar(data)) {
+          streak++;
+        } else {
+          break;
         }
       }
-    `;
-    document.head.appendChild(style);
-  }
 
-  function checkRewards(previousStarCount, newStarCount) {
-    if (newStarCount > previousStarCount && newStarCount % 5 === 0) {
-      addFireworkStyle();
-      launchFireworks();
+      return streak;
     }
-  }
 
-  function render() {
-    const dateKey = getDateKey(currentDate);
-    const data = loadData(dateKey);
+    function launchFireworks() {
+      const fireworks = document.createElement("div");
+      fireworks.style.position = "fixed";
+      fireworks.style.inset = "0";
+      fireworks.style.pointerEvents = "none";
+      fireworks.style.zIndex = "9999";
+      fireworks.style.overflow = "hidden";
+      document.body.appendChild(fireworks);
 
-    document.getElementById("todayText").textContent =
-      `今天是 ${getChineseDate(currentDate)}`;
-
-    document.querySelectorAll(".task").forEach(button => {
-      const task = button.dataset.task;
-      const check = button.querySelector(".check");
-
-      if (data[task]) {
-        button.classList.add("done");
-        check.textContent = "✅";
-      } else {
-        button.classList.remove("done");
-        check.textContent = "⬜";
-      }
-    });
-
-    const doneCount = countDone(data);
-    document.getElementById("progressText").textContent =
-      "今日进度：" + "⭐".repeat(doneCount) + "☆".repeat(4 - doneCount);
-
-    let message = "今天开始闯关吧！";
-    if (doneCount === 1) message = "不错，完成第一个任务！";
-    if (doneCount === 2) message = "继续！还差一点点！";
-    if (doneCount >= 3) message = "太棒了！今天达标啦！🎉";
-    if (doneCount === 4) message = "全部完成！你是自理小冠军！🏆";
-
-    document.getElementById("messageText").textContent = message;
-
-    renderReward();
-    renderCalendar();
-  }
-
-  function renderReward() {
-    const starCount = getStarCount();
-    const smallRewardProgress = starCount % 5 || (starCount > 0 ? 5 : 0);
-
-    document.getElementById("rewardStars").textContent =
-      "⭐".repeat(smallRewardProgress) + "☆".repeat(5 - smallRewardProgress);
-
-    if (starCount >= 20) {
-      document.getElementById("rewardText").textContent =
-        `🎮 已经获得 ${starCount} 颗星！找妈妈购买你的小游戏！`;
-    } else {
-      document.getElementById("rewardText").textContent =
-        `已经获得 ${starCount} 颗星，集满 5 颗星解锁小奖励 🎁`;
-    }
-  }
-
-  function renderCalendar() {
-    const calendar = document.getElementById("calendar");
-    calendar.innerHTML = "";
-
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-
-      const data = loadData(getDateKey(d));
-      const div = document.createElement("div");
-      div.className = "day";
-
-      if (earnedStar(data)) {
-        div.classList.add("success");
-        div.textContent = `${d.getDate()} ⭐`;
-      } else {
-        div.textContent = `${d.getDate()}`;
+      for (let i = 0; i < 90; i++) {
+        const spark = document.createElement("div");
+        spark.textContent = ["🎆", "🎇", "✨", "⭐", "🌟"][Math.floor(Math.random() * 5)];
+        spark.style.position = "absolute";
+        spark.style.left = Math.random() * 100 + "vw";
+        spark.style.top = Math.random() * 100 + "vh";
+        spark.style.fontSize = Math.random() * 28 + 18 + "px";
+        spark.style.animation = "firework-pop 1.8s ease-out forwards";
+        fireworks.appendChild(spark);
       }
 
-      calendar.appendChild(div);
+      setTimeout(() => fireworks.remove(), 2000);
     }
-  }
 
-  document.querySelectorAll(".task").forEach(button => {
-    button.addEventListener("click", () => {
-      const previousStarCount = getStarCount();
+    function checkRewards(previousStreak, newStreak) {
+      if (newStreak > previousStreak && newStreak % 5 === 0) {
+        launchFireworks();
+      }
+    }
 
+    function render() {
       const dateKey = getDateKey(currentDate);
       const data = loadData(dateKey);
-      const task = button.dataset.task;
 
-      data[task] = !data[task];
+      document.getElementById("todayText").textContent =
+        `今天是 ${getChineseDate(currentDate)}`;
 
-      saveData(dateKey, data);
+      document.querySelectorAll(".task").forEach(button => {
+        const task = button.dataset.task;
+        const check = button.querySelector(".check");
 
-      const newStarCount = getStarCount();
-      checkRewards(previousStarCount, newStarCount);
+        if (data[task]) {
+          button.classList.add("done");
+          check.textContent = "✅";
+        } else {
+          button.classList.remove("done");
+          check.textContent = "⬜";
+        }
+      });
 
-      render();
+      const doneCount = countDone(data);
+
+      document.getElementById("progressText").textContent =
+        "今日进度：" + "⭐".repeat(doneCount) + "☆".repeat(4 - doneCount);
+
+      let message = "今天开始闯关吧！";
+      if (doneCount === 1) message = "不错，完成第一个任务！";
+      if (doneCount === 2) message = "继续！还差一点点！";
+      if (doneCount >= 3) message = "太棒了！今天达标啦！🎉";
+      if (doneCount === 4) message = "全部完成！你是自理小冠军！🏆";
+
+      document.getElementById("messageText").textContent = message;
+
+      renderReward();
+      renderCalendar();
+    }
+
+    function renderReward() {
+      const streak = getCurrentStreak();
+      const progress = streak % 5 || (streak > 0 ? 5 : 0);
+
+      document.getElementById("rewardStars").textContent =
+        "⭐".repeat(progress) + "☆".repeat(5 - progress);
+
+      if (streak >= 20) {
+        document.getElementById("rewardText").textContent =
+          `🎮 已经连续坚持 ${streak} 天！找妈妈购买你的小游戏！`;
+      } else {
+        document.getElementById("rewardText").textContent =
+          `已经连续坚持 ${streak} 天，连续 5 天放烟花 🎆`;
+      }
+    }
+
+    function renderCalendar() {
+      const calendar = document.getElementById("calendar");
+      calendar.innerHTML = "";
+
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+
+        const data = loadData(getDateKey(d));
+        const div = document.createElement("div");
+        div.className = "day";
+
+        if (earnedStar(data)) {
+          div.classList.add("success");
+          div.textContent = `${d.getDate()} ⭐`;
+        } else {
+          div.textContent = `${d.getDate()}`;
+        }
+
+        calendar.appendChild(div);
+      }
+    }
+
+    document.querySelectorAll(".task").forEach(button => {
+      button.addEventListener("click", () => {
+        const previousStreak = getCurrentStreak();
+
+        const dateKey = getDateKey(currentDate);
+        const data = loadData(dateKey);
+        const task = button.dataset.task;
+
+        data[task] = !data[task];
+
+        saveData(dateKey, data);
+
+        const newStreak = getCurrentStreak();
+        checkRewards(previousStreak, newStreak);
+
+        render();
+      });
     });
-  });
 
-  function resetToday() {
-    localStorage.removeItem("habit-" + getDateKey(currentDate));
+    function resetToday() {
+      localStorage.removeItem("habit-" + getDateKey(currentDate));
+      render();
+    }
+
+    function changeDay(offset) {
+      currentDate.setDate(currentDate.getDate() + offset);
+      render();
+    }
+
     render();
-  }
-
-  function changeDay(offset) {
-    currentDate.setDate(currentDate.getDate() + offset);
-    render();
-  }
-
-  render();
-</script>
+  </script>
+</body>
+</html>
