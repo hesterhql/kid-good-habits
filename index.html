@@ -169,7 +169,12 @@
       </button>
 
       <button class="task" data-task="wash">
-        <span>🪥 刷牙洗脸</span>
+        <span>🪥 早上刷牙洗脸</span>
+        <span class="check">⬜</span>
+      </button>
+
+      <button class="task" data-task="nightBrush">
+        <span>🪥 晚上刷牙</span>
         <span class="check">⬜</span>
       </button>
 
@@ -178,12 +183,22 @@
         <span class="check">⬜</span>
       </button>
 
+      <button class="task" data-task="helpMom">
+        <span>🧹 帮助妈妈做家务</span>
+        <span class="check">⬜</span>
+      </button>
+
+      <button class="task" data-task="helpDad">
+        <span>🧽 帮助爸爸做家务</span>
+        <span class="check">⬜</span>
+      </button>
+
       <button class="task" data-task="toilet">
         <span>🚽 上厕所冲水</span>
         <span class="check">⬜</span>
       </button>
 
-      <div class="progress" id="progressText">今日进度：☆☆☆☆</div>
+      <div class="progress" id="progressText">今日进度：☆☆☆☆☆</div>
       <div class="message" id="messageText">今天开始闯关吧！</div>
     </div>
 
@@ -207,11 +222,14 @@
   </div>
 
   <script>
-    const tasks = ["bed", "wash", "bath", "toilet"];
+    const tasks = ["bed", "wash", "nightBrush", "bath", "helpMom", "helpDad", "toilet"];
     let currentDate = new Date();
 
     function getDateKey(date) {
-      return date.toISOString().split("T")[0];
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
     }
 
     function getChineseDate(date) {
@@ -220,12 +238,24 @@
 
     function loadData(dateKey) {
       const saved = localStorage.getItem("habit-" + dateKey);
-      return saved ? JSON.parse(saved) : {
+
+      const defaults = {
         bed: false,
         wash: false,
+        nightBrush: false,
         bath: false,
+        helpMom: false,
+        helpDad: false,
         toilet: false
       };
+
+      if (!saved) return defaults;
+
+      try {
+        return { ...defaults, ...JSON.parse(saved) };
+      } catch {
+        return defaults;
+      }
     }
 
     function saveData(dateKey, data) {
@@ -245,6 +275,7 @@
 
       for (let i = 0; i < 365; i++) {
         const d = new Date();
+        d.setHours(12, 0, 0, 0);
         d.setDate(d.getDate() - i);
 
         const data = loadData(getDateKey(d));
@@ -270,12 +301,15 @@
 
       for (let i = 0; i < 90; i++) {
         const spark = document.createElement("div");
-        spark.textContent = ["🎆", "🎇", "✨", "⭐", "🌟"][Math.floor(Math.random() * 5)];
+        spark.textContent =
+          ["🎆", "🎇", "✨", "⭐", "🌟"][Math.floor(Math.random() * 5)];
+
         spark.style.position = "absolute";
         spark.style.left = Math.random() * 100 + "vw";
         spark.style.top = Math.random() * 100 + "vh";
         spark.style.fontSize = Math.random() * 28 + 18 + "px";
         spark.style.animation = "firework-pop 1.8s ease-out forwards";
+
         fireworks.appendChild(spark);
       }
 
@@ -293,7 +327,7 @@
       const data = loadData(dateKey);
 
       document.getElementById("todayText").textContent =
-        `今天是 ${getChineseDate(currentDate)}`;
+        `日期：${getChineseDate(currentDate)}`;
 
       document.querySelectorAll(".task").forEach(button => {
         const task = button.dataset.task;
@@ -311,13 +345,17 @@
       const doneCount = countDone(data);
 
       document.getElementById("progressText").textContent =
-        "今日进度：" + "⭐".repeat(doneCount) + "☆".repeat(4 - doneCount);
+        "今日进度：" +
+        "⭐".repeat(doneCount) +
+        "☆".repeat(tasks.length - doneCount);
 
       let message = "今天开始闯关吧！";
+
       if (doneCount === 1) message = "不错，完成第一个任务！";
       if (doneCount === 2) message = "继续！还差一点点！";
-      if (doneCount >= 3) message = "太棒了！今天达标啦！🎉";
-      if (doneCount === 4) message = "全部完成！你是自理小冠军！🏆";
+      if (doneCount >= 3 && doneCount <= 5) message = "太棒了！今天达标啦！🎉";
+      if (doneCount === 6) message = "非常棒！只剩最后一项！";
+      if (doneCount === 7) message = "全部完成！你是自理小冠军！🏆";
 
       document.getElementById("messageText").textContent = message;
 
@@ -347,6 +385,7 @@
 
       for (let i = 29; i >= 0; i--) {
         const d = new Date();
+        d.setHours(12, 0, 0, 0);
         d.setDate(d.getDate() - i);
 
         const data = loadData(getDateKey(d));
